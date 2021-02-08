@@ -8,9 +8,14 @@ from import_export import resources, widgets, fields
 from import_export.admin import ImportMixin
 from import_export.results import RowResult
 
-from sport.models import Student, MedicalGroup
+from api.crud import get_ongoing_semester
+from sport.models import Student, MedicalGroup, StudentMedicalGroup, Semester
 from sport.signals import get_or_create_student_group
-from .inlines import ViewAttendanceInline, AddAttendanceInline
+from .inlines import (
+    ViewAttendanceInline,
+    AddAttendanceInline,
+    ViewMedicalGroupInline,
+)
 from .site import site
 from .utils import user__email
 
@@ -83,8 +88,21 @@ class StudentResource(resources.ModelResource):
         raise_errors = False
 
     def import_row(self, row, instance_loader, **kwargs):
-        # overriding import_row to ignore errors and skip rows that fail to import
+        # overriding import_row to ignore errors
+        # and skip rows that fail to import
         # without failing the entire import
+        if not kwargs["dry_run"]:
+            medical_group_id = row["medical_group"]
+            del row["medical_group"]
+            student, _ = self.get_or_init_instance(instance_loader, row)
+            StudentMedicalGroup.objects.update_or_create(
+                student=student,
+                semester=get_ongoing_semester(),
+                defaults={
+                    "medical_group_id": medical_group_id
+                }
+            )
+
         import_result = super().import_row(row, instance_loader, **kwargs)
         if import_result.import_type == RowResult.IMPORT_TYPE_ERROR:
             # Copy the values to display in the preview report
@@ -116,14 +134,13 @@ class StudentAdmin(ImportMixin, admin.ModelAdmin):
         if obj is None:
             return (
                 "user",
-                "medical_group",
                 "enrollment_year",
                 "telegram",
             )
         return (
             "user",
             "is_ill",
-            "medical_group",
+            "medical_group_name",
             "enrollment_year",
             "telegram" if obj.telegram is None or len(obj.telegram) == 0 else ("telegram", "write_to_telegram"),
         )
@@ -142,19 +159,20 @@ class StudentAdmin(ImportMixin, admin.ModelAdmin):
     list_filter = (
         "is_ill",
         "enrollment_year",
-        "medical_group",
+        #"medical_group",
     )
 
     list_display = (
         "__str__",
         user__email,
         "is_ill",
-        "medical_group",
+        "medical_group_name",
         "write_to_telegram",
     )
 
     readonly_fields = (
         "write_to_telegram",
+        "medical_group_name",
     )
 
 
@@ -172,24 +190,28 @@ class StudentAdmin(ImportMixin, admin.ModelAdmin):
     )
 
     inlines = (
-        ViewAttendanceInline,
+        ViewMedicalGroupInline,
         AddAttendanceInline,
+        ViewAttendanceInline,
     )
 
     list_select_related = (
         "user",
-        "medical_group",
+        #"medical_group",
     )
+
+    def medical_group_name(self, obj):
+        return obj.medical_group_name
+
+    medical_group_name.short_description = 'Last medical group'
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         # TODO: show current primary group
-        return qs
-        # return qs.annotate(has_enrolled=RawSQL(
-        #     'SELECT count(*) > 0 FROM enroll, "group" '
-        #     'WHERE student_id = student.user_id '
-        #     'AND "group".semester_id = current_semester() '
-        #     'AND "group".id = enroll.group_id '
-        #     'AND enroll.is_primary = True',
-        #     ()
-        # ))
+        return qs.annotate(medical_group_name=RawSQL(
+            'SELECT medical_group.name FROM medical_group, student_medical_group '
+            'WHERE student_medical_group.student_id = student.user_id '
+            'AND student_medical_group.semester_id = current_semester() '
+            'AND medical_group.id = student_medical_group.medical_group_id',
+            ()
+        ))

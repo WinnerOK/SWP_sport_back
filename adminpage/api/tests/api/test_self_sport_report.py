@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.views.self_sport_report import SelfSportErrors
-from sport.models import SelfSportReport, SelfSportType, Attendance, Group
+from sport.models import SelfSportReport, SelfSportType, MedicalGroup, Attendance, Group, MedicalGroups
 
 frozen_time = date(2020, 1, 2)
 semester_start = date(2020, 1, 1)
@@ -21,6 +21,7 @@ semester_end = date(2020, 1, 15)
 def setup(
         student_factory,
         semester_factory,
+        student_medical_group_factory,
 ):
     email = "user@foo.bar"
     password = "pass"
@@ -28,10 +29,6 @@ def setup(
         email=email,
         password=password,
     )
-
-    student.student.medical_group_id = \
-        settings.SELFSPORT_MINIMUM_MEDICAL_GROUP_ID
-    student.save()
 
     semester = semester_factory(
         name="S20",
@@ -50,6 +47,7 @@ def setup(
         email=email,
         password=password,
     )
+    student_medical_group_factory(semester, student.student, MedicalGroups.GENERAL)
     return student, semester, selfsport_type, client
 
 
@@ -122,10 +120,10 @@ def test_reference_upload_link(
 @pytest.mark.django_db
 def test_reference_upload_medical_disalowance(
         setup,
+        student_medical_group_factory,
 ):
     student, semester, selfsport_type, client = setup
-    student.student.medical_group_id = -2
-    student.save()
+    student_medical_group_factory(semester, student.student, MedicalGroups.NO_CHECKUP)
 
     response = client.post(
         f"/{settings.PREFIX}api/selfsport/upload",

@@ -3,7 +3,9 @@ from django.core.mail import send_mail
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver
+from django.utils.functional import cached_property
 
+from sport.models import MedicalGroup
 from sport.utils import get_current_study_year
 
 
@@ -21,11 +23,24 @@ class Student(models.Model):
         default=False,
     )
 
-    medical_group = models.ForeignKey(
-        'MedicalGroup',
-        on_delete=models.DO_NOTHING,
-        default=-2,
-    )
+    @cached_property
+    def medical_group(self):
+        return MedicalGroup.objects.raw(
+            'SELECT * FROM medical_group '
+            'LEFT JOIN student_medical_group ON '
+            'semester_id <= current_semester() AND student_id = %s '
+            'LEFT JOIN semester ON '
+            'semester.id = semester_id '
+            'WHERE medical_group.id = COALESCE('
+            'student_medical_group.medical_group_id, -2) '
+            'ORDER BY semester.start DESC '
+            'LIMIT 1 ',
+            (self.pk,)
+        )[0]
+
+    @property
+    def medical_group_id(self):
+        return self.medical_group.pk
 
     enrollment_year = models.PositiveSmallIntegerField(
         default=get_current_study_year,

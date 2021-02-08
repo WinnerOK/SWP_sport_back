@@ -97,7 +97,7 @@
                     {% endif %}
 
                     <p id="medical-group">Your medical group is <span
-                            class="badge badge-pill badge-{% if student.medical_group_id < 0 %}danger{% elif student.medical_group_id == 0 %}warning{% else %}success{% endif %}"
+                            class="badge badge-pill badge-{% if student.obj.medical_group_id < 0 %}danger{% elif student.obj.medical_group_id == 0 %}warning{% else %}success{% endif %}"
                             onclick="openMedicalInfoModal(
                                     `{{ student.obj.medical_group.name }}`,
                                     `{{ student.obj.medical_group.description }}`

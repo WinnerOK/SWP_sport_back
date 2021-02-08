@@ -47,7 +47,7 @@ def get_clubs(student: Optional[Student] = None):
             'AND sport_id = sport.id '
             'AND semester_id = s.id '
             'AND is_club = TRUE '
-            'AND sign(%(medical_group_id_sign)s) = sign(g.minimum_medical_group_id) '
+            'AND NULLIF(sign(g.minimum_medical_group_id), sign(%(medical_group_id_sign)s)) is NULL '
             'GROUP BY g.id, sport.id, s.id', {
                 "medical_group_id_sign": 1 if student is None else student.medical_group_id
             })

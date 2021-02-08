@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.views.enroll import EnrollErrors
-from sport.models import Enroll, Group, MedicalGroups
+from sport.models import Enroll, Group, MedicalGroups, StudentMedicalGroup, Semester
 
 User = get_user_model()
 
@@ -41,14 +41,13 @@ def setup_group(
 
 
 @pytest.fixture
-def logged_in_student_general_med(student_factory) -> Tuple[APIClient, User]:
+def logged_in_student(student_factory) -> Tuple[APIClient, User]:
     email = "user@foo.bar"
     password = "pass"
     student_user = student_factory(
         email=email,
         password=password,
     )
-    student_user.student.medical_group_id = MedicalGroups.GENERAL
     student_user.save()
     client = APIClient()
     client.login(
@@ -62,9 +61,37 @@ def logged_in_student_general_med(student_factory) -> Tuple[APIClient, User]:
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_enroll_one_success(
         setup_group: Group,
-        logged_in_student_general_med
+        logged_in_student,
+        student_medical_group_factory,
 ):
-    client, student_user = logged_in_student_general_med
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
+
+    response = client.post(
+        f"/{settings.PREFIX}api/enrollment/enroll",
+        data={
+            "group_id": setup_group.pk,
+        }
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert Enroll.objects.filter(
+        student=student_user.student,
+        group=setup_group,
+    ).count() == 1
+
+@pytest.mark.django_db
+@pytest.mark.freeze_time('2021-01-01 10:00')
+def test_enroll_lazy_medical_group(
+        setup_group: Group,
+        student_medical_group_factory,
+        logged_in_student,
+        semester_factory,
+):
+    client, student_user = logged_in_student
+    semester_factory("S2", date(2021, 1, 1), date(2021, 2, 20))
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
+    assert Semester.objects.count() == 2
+    assert StudentMedicalGroup.objects.count() == 1
 
     response = client.post(
         f"/{settings.PREFIX}api/enrollment/enroll",
@@ -83,9 +110,12 @@ def test_enroll_one_success(
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_enroll_full_group(
         setup_group: Group,
-        logged_in_student_general_med
+        logged_in_student,
+        student_medical_group_factory,
 ):
-    client, student_user = logged_in_student_general_med
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
+
     setup_group.capacity = 0
     setup_group.save()
     response = client.post(
@@ -106,10 +136,12 @@ def test_enroll_full_group(
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_enroll_two_success(
         setup_group: Group,
-        logged_in_student_general_med,
-        group_factory
+        logged_in_student,
+        group_factory,
+        student_medical_group_factory,
 ):
-    client, student_user = logged_in_student_general_med
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
 
     response = client.post(
         f"/{settings.PREFIX}api/enrollment/enroll",
@@ -149,13 +181,12 @@ def test_enroll_two_success(
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_enroll_insufficient_medical(
         setup_group: Group,
-        logged_in_student_general_med,
-        freezer
+        logged_in_student,
+        freezer,
+        student_medical_group_factory,
 ):
-    client, student_user = logged_in_student_general_med
-
-    student_user.student.medical_group_id = MedicalGroups.SPECIAL2
-    student_user.save()
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.SPECIAL2)
 
     setup_group.minimum_medical_group_id = MedicalGroups.SPECIAL1
     setup_group.save()
@@ -174,10 +205,12 @@ def test_enroll_insufficient_medical(
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_enroll_too_many_groups(
         setup_group: Group,
-        logged_in_student_general_med,
-        group_factory
+        logged_in_student,
+        group_factory,
+        student_medical_group_factory
 ):
-    client, student_user = logged_in_student_general_med
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
     groups = [setup_group]
     # setup group is G1, others are G2, G3 etc
     for i in range(2, settings.STUDENT_MAXIMUM_GROUP_COUNT + 2):
@@ -218,11 +251,14 @@ def test_enroll_too_many_groups(
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_unenroll_extra(
         setup_group: Group,
-        logged_in_student_general_med,
+        logged_in_student,
         group_factory,
-        enroll_factory
+        enroll_factory,
+        student_medical_group_factory,
 ):
-    client, student_user = logged_in_student_general_med
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
+
     enroll_factory(
         student_user.student,
         setup_group,
@@ -256,10 +292,13 @@ def test_unenroll_extra(
 @pytest.mark.freeze_time('2020-01-01 10:00')
 def test_unenroll_only(
         setup_group: Group,
-        logged_in_student_general_med,
-        enroll_factory
+        logged_in_student,
+        enroll_factory,
+        student_medical_group_factory
 ):
-    client, student_user = logged_in_student_general_med
+    client, student_user = logged_in_student
+    student_medical_group_factory(setup_group.semester, student_user.student, MedicalGroups.GENERAL)
+
     enroll_factory(
         student_user.student,
         setup_group,

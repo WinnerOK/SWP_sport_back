@@ -4,7 +4,26 @@ from django.contrib.admin.widgets import AdminDateWidget
 from django.http import HttpRequest
 from django.utils import timezone
 
-from sport.models import Attendance, Schedule, Enroll, Group, Training
+from sport.models import (
+    Attendance,
+    Schedule,
+    Enroll,
+    Group,
+    Training,
+    StudentMedicalGroup,
+)
+
+
+class ViewMedicalGroupInline(admin.TabularInline):
+    model = StudentMedicalGroup
+    extra = 0
+    ordering = ("-semester__start",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            "semester",
+            "medical_group"
+        )
 
 
 class ViewAttendanceInline(admin.TabularInline):
@@ -13,7 +32,11 @@ class ViewAttendanceInline(admin.TabularInline):
     fields = ("training", "student", "hours")
     readonly_fields = ("training", "student")
     autocomplete_fields = ("training", "student")
-    ordering = ("-training__start", "student__user__first_name", "student__user__last_name")
+    ordering = (
+        "-training__start",
+        "student__user__first_name",
+        "student__user__last_name",
+    )
 
     def has_add_permission(self, request, obj):
         return False
@@ -75,7 +98,10 @@ class ScheduleInline(admin.TabularInline):
     autocomplete_fields = ("training_class",)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("group__semester", "training_class")
+        return super().get_queryset(request).select_related(
+            "group__semester",
+            "training_class",
+        )
 
 
 class EnrollInline(admin.TabularInline):
@@ -88,7 +114,10 @@ class EnrollInline(admin.TabularInline):
         return False
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("student__user", "group__semester")
+        return super().get_queryset(request).select_related(
+            "student__user",
+            "group__semester",
+        )
 
 
 class GroupInline(admin.TabularInline):
@@ -99,13 +128,15 @@ class GroupInline(admin.TabularInline):
 
 class TrainingInline(admin.TabularInline):
     model = Training
-    fields = ("start", "end", "training_class")
-    autocomplete_fields = ("training_class",)
+    fields = ("start", "end")
     extra = 0
     ordering = ("-start",)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("training_class", "group__semester")
+        return super().get_queryset(request).select_related(
+            "group__semester",
+            "training_class",
+        )
 
 
 class ViewTrainingInline(TrainingInline):

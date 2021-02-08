@@ -31,13 +31,10 @@ def parse_group(group: dict) -> dict:
 def profile_view(request, **kwargs):
     user = request.user
 
-    student = Student.objects.filter(pk=user.pk).select_related(
-        "medical_group"
-    ).first()  # type: Optional[Student]
+    student = Student.objects.filter(pk=user.pk).first()  # type: Optional[Student]
     trainer = getattr(user, "trainer", None)  # type: Optional[Trainer]
 
     current_semester = get_ongoing_semester()
-    utc_date = timezone.localdate(timezone=timezone.utc)
 
     context = {
         "user": request.user,
@@ -111,27 +108,18 @@ def profile_view(request, **kwargs):
 def process_med_group_form(request, *args, **kwargs):
     form = MedicalGroupReferenceForm(request.POST, request.FILES)
     if form.is_valid():
-        obj, created = MedicalGroupReference.objects.get_or_create(
+        MedicalGroupReference.objects.create(
             student_id=request.user.pk,
-            defaults={
-                "image": form.cleaned_data["reference"],
-                "semester": get_ongoing_semester(),
-            },
+            semester=get_ongoing_semester(),
+            image=form.cleaned_data["reference"],
         )
 
-        if created:
-            set_session_notification(
-                request,
-                "Medical group reference successfully submitted",
-                "success",
-            )
-            return redirect('profile')
-        else:
-            set_session_notification(
-                request,
-                "You have already submitted medical group reference",
-                "error",
-            )
+        set_session_notification(
+            request,
+            "Medical group reference successfully submitted",
+            "success",
+        )
+        return redirect('profile')
     else:
         set_session_notification(request, "Form is invalid", "error")
     return redirect('profile')

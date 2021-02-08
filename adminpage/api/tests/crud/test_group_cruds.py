@@ -20,7 +20,6 @@ def test_club_for_student(
         group_factory,
 ):
     student = student_factory("A@foo.bar").student
-    student.medical_group_id = MedicalGroups.NO_CHECKUP
 
     sport = sport_factory(name="Sport")
     s1 = semester_factory(name="S19", start=date(2020, 1, 1), end=date(2020, 1, 3))
@@ -115,7 +114,6 @@ def test_sport_no_appropriate_group_in_sport(
         group_factory,
 ):
     student = student_factory("A@foo.bar").student
-    student.medical_group_id = MedicalGroups.NO_CHECKUP
 
     sport = sport_factory(name="Sport")
     s1 = semester_factory(name="S19", start=date(2020, 1, 1), end=date(2020, 1, 3))

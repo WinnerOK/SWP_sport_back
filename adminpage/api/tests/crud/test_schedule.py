@@ -61,6 +61,7 @@ def test_get_sport_schedule(
         group_factory,
         training_class_factory,
         schedule_factory,
+        student_medical_group_factory,
 ):
     student = student_factory("A@foo.bar").student
     start = date(2020, 1, 20)
@@ -129,8 +130,7 @@ def test_get_sport_schedule(
     assert get_sport_schedule(other_sport.pk) == []
     assert get_sport_schedule(other_sport.pk, student) == []
     assert get_sport_schedule(sport.pk, student) == []
-    student.medical_group_id = MedicalGroups.SPECIAL1
-    student.save()
+    student_medical_group_factory(sem, student, MedicalGroups.SPECIAL1)
     assertMembers(get_sport_schedule(sport.pk, student), [
         {
             'group_id': group1.pk,
@@ -154,8 +154,7 @@ def test_get_sport_schedule(
         }
     ])
     assert get_sport_schedule(other_sport.pk, student) == []
-    student.medical_group_id = MedicalGroups.GENERAL
-    student.save()
+    student_medical_group_factory(sem, student, MedicalGroups.GENERAL)
     enroll_student(group2, student)
     assertMembers(get_sport_schedule(sport.pk, student), [
         {

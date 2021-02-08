@@ -45,9 +45,9 @@ class GroupAdmin(admin.ModelAdmin):
     )
 
     inlines = (
+        EnrollInline,
         ScheduleInline,
         TrainingInline,
-        EnrollInline,
     )
 
     list_select_related = (

@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from django.contrib.auth import get_user_model
 
-from sport.models import Student
+from sport.models import Student, MedicalGroups
 from api.crud import get_email_name_like_students
 
 User = get_user_model()
@@ -31,29 +31,14 @@ def test_get_email_name_like_students(
         student_factory,
         semester_factory,
         sport_factory,
-        group_factory
+        group_factory,
+        student_medical_group_factory,
 ):
     user = student_factory(
         first_name="Kirill",
         last_name="Fedoseev",
         email="k.fedoseev@innopolis.university",
     )
-    assert get_email_name_like_students(0, "Kirill") == [{
-        "id": user.student.pk,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-        "full_name": f"{user.first_name} {user.last_name}",
-    }]
-    assert len(get_email_name_like_students(0, "Kir")) == 1
-    assert len(get_email_name_like_students(0, "Kirill Fed")) == 1
-    assert len(get_email_name_like_students(0, "Kirill Fedoseev")) == 1
-    assert len(get_email_name_like_students(0, "k.fedoseev")) == 1
-    assert len(
-        get_email_name_like_students(0,"k.fedoseev@innopolis.university")
-    ) == 1
-    assert len(get_email_name_like_students(0, "kfedoseev")) == 0
-
     start = date(2020, 1, 20)
     end = date(2020, 1, 27)
     sem = semester_factory(
@@ -61,7 +46,6 @@ def test_get_email_name_like_students(
         start=start,
         end=end,
     )
-
     sport = sport_factory(
         name="football",
         special=False,
@@ -72,8 +56,29 @@ def test_get_email_name_like_students(
         capacity=30,
         sport=sport,
         semester=sem,
-        minimum_medical_group_id=None
+        minimum_medical_group_id=1
     )
+
+    assert len(get_email_name_like_students(group.id, "Kir")) == 0
+    group.minimum_medical_group_id = None
+    group.save()
+    student_medical_group_factory(sem, user.student, MedicalGroups.GENERAL)
+    assert get_email_name_like_students(group.id, "Kirill") == [{
+        "id": user.student.pk,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+        "full_name": f"{user.first_name} {user.last_name}",
+    }]
+    assert len(get_email_name_like_students(group.id, "Kir")) == 1
+    assert len(get_email_name_like_students(group.id, "Kirill Fed")) == 1
+    assert len(get_email_name_like_students(group.id, "Kirill Fedoseev")) == 1
+    assert len(get_email_name_like_students(group.id, "k.fedoseev")) == 1
+    assert len(
+        get_email_name_like_students(group.id, "k.fedoseev@innopolis.university")
+    ) == 1
+    assert len(get_email_name_like_students(group.id, "kfedoseev")) == 0
+
     assert len(
         get_email_name_like_students(
             group.id,
@@ -88,8 +93,7 @@ def test_get_email_name_like_students(
             "k.fedoseev@innopolis.university"
         )
     ) == 0
-    user.student.medical_group_id = 0
-    user.save()
+    student_medical_group_factory(sem, user.student, MedicalGroups.SPECIAL1)
     assert len(
         get_email_name_like_students(
             group.id,

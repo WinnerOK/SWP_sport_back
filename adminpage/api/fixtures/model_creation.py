@@ -11,6 +11,7 @@ from sport.models import (
     Semester,
     Sport,
     Student,
+    StudentMedicalGroup,
     Trainer,
     Training,
     TrainingClass,
@@ -179,3 +180,28 @@ def attendance_factory():
         return obj
 
     return create_attendance
+
+
+@pytest.fixture
+@pytest.mark.django_db
+def student_medical_group_factory():
+    def create(
+            semester: Semester,
+            student: Student,
+            medical_group_id: int,
+    ):
+        if hasattr(student, 'medical_group'):
+            delattr(student, 'medical_group')
+        obj, created = StudentMedicalGroup.objects.get_or_create(
+            semester=semester,
+            student=student,
+            defaults={
+                'medical_group_id': medical_group_id
+            }
+        )
+        if not created:
+            obj.medical_group_id = medical_group_id
+            obj.save()
+        return obj
+
+    return create

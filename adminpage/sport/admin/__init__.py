@@ -16,6 +16,7 @@ from .selfSportAdmin import SelfSportAdmin
 from .selfsportTypeAdmin import SelfSportTypeAdmin
 from .semesterAdmin import SemesterAdmin
 from .studentAdmin import StudentAdmin
+from .studentMedicalGroupAdmin import StudentMedicalGroupAdmin
 from .trainingClassAdmin import TrainingClassAdmin
 from .djangoGroupAdmin import DjangoGroupAdmin
 from .referenceAdmin import ReferenceAdmin

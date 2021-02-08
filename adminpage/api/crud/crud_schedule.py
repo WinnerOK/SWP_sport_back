@@ -32,7 +32,7 @@ def get_sport_schedule(
                        'AND g.semester_id = current_semester() '
                        'AND s.group_id = g.id '
                        'AND sp.id = %(sport_id)s '
-                       'AND sign(%(medical_group_id_sign)s) = sign(g.minimum_medical_group_id)  '
+                       'AND NULLIF(sign(g.minimum_medical_group_id), sign(%(medical_group_id_sign)s)) is NULL '
                        'GROUP BY g.id, s.id, tc.id',
                        {
                            "sport_id": sport_id,
