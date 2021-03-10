@@ -4,7 +4,7 @@ from django.forms.utils import to_current_timezone
 
 
 class Training(models.Model):
-    group = models.ForeignKey("Group", on_delete=models.CASCADE)
+    group = models.ForeignKey("Group", on_delete=models.SET_NULL, null=True)
     schedule = models.ForeignKey("Schedule", on_delete=models.SET_NULL, null=True, blank=True)
     start = models.DateTimeField(null=False)
     end = models.DateTimeField(null=False)

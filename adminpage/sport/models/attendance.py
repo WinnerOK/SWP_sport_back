@@ -9,7 +9,7 @@ def validate_hours(hours):
 
 
 class Attendance(models.Model):
-    training = models.ForeignKey('Training', on_delete=models.SET_NULL, null=True)
+    training = models.ForeignKey('Training', on_delete=models.CASCADE)
     student = models.ForeignKey("Student", on_delete=models.CASCADE)
     hours = models.DecimalField(max_digits=5, decimal_places=2, default=1, validators=[validate_hours])
     cause_report = models.OneToOneField('SelfSportReport', null=True, blank=True, on_delete=models.CASCADE, related_name='attendance')
